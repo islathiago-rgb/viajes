@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Tracker de Paquetes de Viaje</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        header { text-align: center; background-color: #007bff; color: white; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        label { font-weight: bold; }
+        select, input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        .results { margin-top: 20px; }
+        .result { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .loading { color: #007bff; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bot Tracker de Paquetes de Viaje Económicos</h1>
+        <p>El bot rastrea ofertas automáticamente a Europa, Brasil o USA para 3 personas, verano o fechas cercanas. Salidas desde Ezeiza (Buenos Aires), precios en pesos argentinos.</p>
+    </header>
+    <div class="container">
+        <form id="searchForm">
+            <label for="destination">Destino:</label>
+            <select id="destination">
+                <option value="LON">Europa (ej: Londres)</option>
+                <option value="RIO">Brasil (ej: Río de Janeiro)</option>
+                <option value="NYC">USA (ej: Nueva York)</option>
+            </select>
+            
+            <label for="season">Temporada:</label>
+            <select id="season">
+                <option value="2024-07-01">Verano (Julio 2024)</option>
+                <option value="2024-06-15">Fechas Cercanas (Junio 2024)</option>
+            </select>
+            
+            <label for="accommodation">Alojamiento:</label>
+            <select id="accommodation">
+                <option value="hotel">2 Habitaciones (Hotel)</option>
+                <option value="casa">Casa</option>
+            </select>
+            
+            <label for="persons">Personas:</label>
+            <input type="number" id="persons" value="3" readonly>
+            
+            <button type="submit">Iniciar Tracker</button>
+        </form>
+        
+        <div class="results" id="results">
+            <p id="status">El bot está listo. Haz clic en "Iniciar Tracker" para buscar ofertas.</p>
+        </div>
+    </div>
+    
+    <script>
+        const apiKey = 'TU_CLAVE_API_AQUI'; // Reemplaza con tu clave de RapidAPI (Skyscanner)
+        let trackingInterval;
+
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const dest = document.getElementById('destination').value;
+            const season = document.getElementById('season').value;
+            const accom = document.getElementById('accommodation').value;
+            
+            // Detener tracker anterior si existe
+            if (trackingInterval) clearInterval(trackingInterval);
+            
+            // Iniciar búsqueda inicial
+            searchPackages(dest, season, accom);
+            
+            // Actualizar cada 30 segundos (como un bot)
+            trackingInterval = setInterval(() => {
+                searchPackages(dest, season, accom);
+            }, 30000); // 30 segundos
+        });
+
+        async function searchPackages(dest, season, accom) {
+            const resultsDiv = document.getElementById('results');
+            const status = document.getElementById('status');
+            status.innerHTML = '<div class="loading">Bot rastreando ofertas desde Ezeiza...</div>';
+            
+            try {
+                // API de Skyscanner: País AR, Moneda ARS, Origen EZE (Ezeiza)
+                const url = `https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/browsequotes/v1.0/AR/ARS/es-AR/EZE-sky/${dest}-sky/${season}?inboundpartialdate=${season}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-RapidAPI-Key': apiKey,
+                        'X-RapidAPI-Host': 'skyscanner-skyscanner-flight-search-v1.p.rapidapi.com'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Error en la API');
+                
+                const data = await response.json();
+                const quotes = data.Quotes || [];
+                
+                // Simular paquetes con alojamiento (en un bot real, combina con API de Booking)
+                let html = '<h3>Ofertas encontradas (actualizado por el bot, precios en ARS):</h3>';
+                if (quotes.length > 0) {
+                    quotes.slice(0, 5).forEach(quote => { // Muestra top 5
+                        const price = quote.MinPrice * 3; // Estimado para 3 personas (en ARS)
+                        const accomText = accom === 'hotel' ? 'Hotel con 2 habitaciones' : 'Casa';
+                        html += `
+                            <div class="result">
+                                <h4>Paquete a ${dest} - ${season}</h4>
+                                <p>Precio estimado: $${price.toLocaleString('es-AR')} ARS (vuelo + ${accomText}). <a href="https://www.skyscanner.net" target="_blank">Reservar</a></p>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<p>No se encontraron ofertas económicas. El bot seguirá buscando.</p>';
+                }
+                
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="error">Error: ' + error.message + '. Verifica tu clave API o conexión.</div>';
+            }
+        }
+    </script>
+</body>
+</html>
